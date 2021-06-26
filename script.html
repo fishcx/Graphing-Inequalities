@@ -1,0 +1,428 @@
+<script>
+	$(document).ready(function() {
+    
+    $('.changeItem').change(function(){
+        $('#generate').click();
+    });
+
+    $(document).keypress(function (e) {
+        var key = e.which;
+         if(key == 13)  // the enter key code
+         {
+            $('#generate').click();
+             return false;  
+          }
+    });
+    
+    $('#video-button').hide();
+    $('#plot-dots').hide();
+    $('#plot-no-dots').hide();
+    $('#dotSliderDiv').hide();
+    
+    $('#generate').click(function(){
+        // reset when generated
+        $("#show-answer").val("Show Answer");
+        $('#plot-dots').hide();
+        $('#plot-no-dots').hide();
+        $('#dotSliderDiv').show();
+        
+        generate(parseInt($("#type").val())); 
+     });
+
+    $("#show-answer").click(function(){
+       if($("#show-answer").val() == "Show Answer" ){
+          if($("#dotSlider").is(':checked')){
+               $('#plot-dots').show();
+               $('#plot-no-dots').hide();
+           }
+           else {
+               $('#plot-dots').hide();
+               $('#plot-no-dots').show();
+            }
+          $("#show-answer").val("Hide Answer");
+       } else{
+         $('#plot-dots').hide();
+         $('#plot-no-dots').hide();
+         $("#show-answer").val("Show Answer");
+        }
+    });
+    
+    $('#dotSlider').prop('checked', true);
+    $("#dot-button").click(function(){
+        
+        if($('#dotSlider').is(':checked')){
+        
+            if($("#show-answer").val() == "Hide Answer"){
+               $('#plot-dots').hide();
+               $('#plot-no-dots').show();
+            }
+            $(this).val('Show Dots');
+            $('#dotSlider').prop('checked', false);
+            
+        } else {
+            if($("#show-answer").val() == "Hide Answer"){
+               $('#plot-dots').show();
+               $('#plot-no-dots').hide();
+            }
+            $(this).val('Hide Dots');
+            $('#dotSlider').prop('checked', true);
+        }
+    });
+	});
+	function generate(type){
+       
+       var videoLinks = ["https://www.youtube.com/watch?v=ty0mI02k05I",
+                         "https://www.youtube.com/watch?v=-Fh0z18aDVM"];
+       
+       if(videoLinks[type-1].length != 0){ 
+         $("#videoLink"). attr("href", videoLinks[type-1]);
+         $('#video-button').show();
+       }
+       else{
+         $('#video-button').hide();
+       }
+       
+       var problem = "";
+       var answer = "";
+       var a,b,c,d,e,f,g,h,sf;
+       $("#generated").html("");
+       $("#answer").html("");
+       
+       var lines;
+       
+       switch(type) {
+           // One inequality
+           case 1: 
+           var line = getLinearIneq(); 
+           lines = [line];       
+           problem = "Graph "+formatLine(line);
+           break;
+           
+           // Two inequalities
+           case 2:
+           var line1 = getLinearIneq(); 
+           var line2 = getLinearIneq(); 
+           lines = [line1,line2];       
+           var ineqSym1 = line1.sym;      
+           var ineqSym2 = line2.sym;
+           problem = "Graph "+formatLine(line1)+" and "+formatLine(line2);
+           break;
+       }
+       $("#generated").html(doublesigns(problem));   
+       renderMathInElement(document.body);
+       //MathJax.Hub.queue.Push(["Typeset",MathJax.Hub,"generated"]); // graphing takes some time so format the mathjax first
+       
+       draw(lines,true,"plot-dots");
+       draw(lines,false,"plot-no-dots");
+  
+	}
+    
+    // helper function to return a random format for given line
+    function formatLine(line){
+       
+       var form = "";
+       var symbol = line.sym;
+       
+       if(line.d < 0){
+          symbol = line.symOpp;
+       }
+       
+       switch(random(0,2)){
+          
+          // slope-intercept (y =)
+          case 0:
+          form = "\\(y "+line.sym+" "+simplifyFrac(line.n,line.d)+"x + "+line.b+"\\)";
+          break;
+          
+          // ax + by = c
+          case 1:
+          form = "\\("+(-1*line.n)+"x + "+line.d+"y "+symbol+" "+(line.d*line.b)+"\\)";
+          break;
+          
+          // by + ax = c
+          case 2:
+          form = "\\("+line.d+"y + "+(-1*line.n)+"x "+symbol+" "+(line.d*line.b)+"\\)";
+          break;
+       
+       }
+       
+       return form;
+    }
+    
+    // helper function for graphing to produce a line with a viable y-intercept and slope that'll fit in 10 by 10
+    function getLinearIneq(){
+       var found = false;
+       var num, den, slope, yInt;
+       
+       do{
+           // generate values to be tested
+           yInt = random(-9,9); 
+           num = non_zero_random(-10,10);
+           den = non_zero_random(-5,5);
+           
+           // test to see if values produce another coordinate in 10 by 10 
+           for(var i = -9; i < 9; i++){
+           
+              var yVal = num/den*i+yInt;
+              
+              if(yVal > -10 && yVal < 10){
+                 
+                 found = true;
+              
+              }
+            
+           }
+       }
+       while(!found);
+       
+       var symbol,dash,above, oppsym;
+       
+       // pick the type of inequality
+       switch(random(0,3)){
+          
+          // > greater than
+          case 0:
+          symbol = ">";
+          oppsym = "<";
+          dash = true;
+          above = true;
+          break;
+          
+          // < less than
+          case 1:
+          symbol = "<";
+          oppsym = ">";
+          dash = true;
+          above = false;
+          break;
+          
+          // >= greater than or equal to
+          case 2:
+          symbol = "\\geq";
+          oppsym = "\\leq";
+          dash = false;
+          above = true;
+          break;
+          
+          // <= less than or equal to
+          case 3:
+          symbol = "\\leq";
+          oppsym = "\\geq";
+          dash = false;
+          above = false;
+          break;
+          
+       }
+            
+       return {n:num, d:den, b:yInt, sym:symbol, symOpp: oppsym, dashed:dash, shadedAbove:above};
+    }
+    
+    function draw(lines,dotBoolean,plot) {
+    
+    var colors = ['#3F4591', '#129649'];
+    var shadingTriangles = [];
+    try {
+
+      var data = [];
+      
+      for(var k = 0; k < lines.length; k++){
+         
+         var col = colors[k]; 
+         
+         // compile the expression once
+         var expr = math.compile(lines[k].n/lines[k].d+"x + "+lines[k].b);
+         
+         // evaluate the expression repeatedly for different values of x
+      // for some reason, using an increment of 0.1 makes it so that the "pretty points" no longer work - needed for 1/x
+      var xValues = math.range(-11, 11, 0.25).toArray();
+      const yValues = xValues.map(function (x) {
+        return expr.eval({x: x});
+      })
+      
+      var xValues2 = [];
+      var yValues2 = []
+      for(var i = 0; i < xValues.length; i ++){         
+         var yvalue = expr.eval({x: xValues[i]});
+
+            // creates the "pretty points" to graph points at integer y-values
+            if(Number.isInteger(yvalue) && Number.isInteger(xValues[i])){        
+               xValues2.push(xValues[i]);
+               yValues2.push(yvalue);        
+            }          
+      }         
+      
+      var lineType = "line";
+      if(lines[k].dashed){lineType = "dashdot";}
+      
+      // render the function using plotly
+      var trace1 = {
+        x: xValues,
+        y: yValues,
+        type: 'scatter',
+        mode: 'lines',        
+        line: {
+          color: col,
+          width: 2,
+          dash: lineType
+        },
+        name:"",
+      };   
+      
+      if(dotBoolean){
+      
+      // render the "pretty points" using plotly
+      var trace2 = {
+        x: xValues2,
+        y: yValues2,
+        type: 'scatter',
+        mode: 'markers',
+        marker: {
+          color: col,
+          size: 8
+        },
+        hoverinfo:'none'
+      };
+      
+      }
+      
+      var axis_template ={
+        showgrid: true,
+        zeroline: true,
+        nticks: 23,
+        range: [-11,11], 
+        gridcolor: '#bdbdbd', //grid color
+        gridwidth: 1.2, //grid width
+        zerolinecolor: 'black', // axes color
+        zerolinewidth: 1.5, // axes widths
+        showticklabels:false
+      };        
+      
+      var path = ""; //for paths, M means move to, L means line to. the numbers after are the coordinates  
+      if(lines[k].shadedAbove){
+        path = "M -12,"+expr.eval({x: -12})+" L -12,100 L 12,100 L 12,"+expr.eval({x: 12});
+      }
+      else{
+        path = "M -12,"+expr.eval({x: -12})+" L -12,-100 L 12,-100 L 12,"+expr.eval({x: 12});
+      }
+      
+      shadingTriangles.push(
+        //Filled Triangle for shading above or below the inequality
+            {
+            type: 'path',
+            path: path,
+            opacity: 0.5,
+            fillcolor: colors[k]      
+         },
+        );
+      
+      if(dotBoolean){
+        data.push(trace1,trace2);
+      }
+      else{
+         data.push(trace1);
+      }
+      
+      }
+      
+      // make grid smaller for mobile
+      var gridsize;
+      var indent;
+      // gridsize= Math.min(.95*window.innerWidth,550);
+      
+      if(window.innerWidth > 601){
+         gridsize = 550;
+         indent = 20;
+      }else{
+         gridsize = 350;
+         indent = 0;
+      }
+      
+      var xTickMarkLabels =   {
+        x: [-10.1,-9.1,-8.1,-7.1,-6.1,-5.1,-4.1,-3.1,-2.1,-1.1,0,1,2,3,4,5,6,7,8,9,10],
+        y: [-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1],
+        mode: 'text',
+        text:[-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10],
+        textposition:"bottom",
+        textfont: {
+          size:13,
+        },
+        hoverinfo:'none'
+      };   
+      
+      var yTickMarkLabels =   {
+        y: [-10.1,-9.1,-8.1,-7.1,-6.1,-5.1,-4.1,-3.1,-2.1,-1.1,0,1,2,3,4,5,6,7,8,9,10],
+        x: [-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1,-0.1],
+        mode: 'text',
+        text:[-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9,10],
+        textposition:"left",
+        textfont: {
+          size:13,
+        },
+        hoverinfo:'none'
+      };
+      
+      var layout = {
+        xaxis:axis_template,
+        yaxis:axis_template,
+        showlegend: false,
+        width: gridsize,
+        height: gridsize,
+        hovermode: 'closest',   
+        font:{size: 18},
+        shapes: shadingTriangles,
+        margin: {l: indent,  r: 30, t: 20}
+      };
+      
+      layout.annotations= [
+      {
+         x: 0,
+         y: 11,
+         showarrow: true,
+         arrowsize:2,
+         arrowwidth:1,
+         arrowhead:3,
+         ax: 0,
+         ay: 35
+       },
+       {
+         x: 0,
+         y: -11,
+         showarrow: true,
+         arrowsize:2,
+         arrowwidth:1,
+         arrowhead:3,
+         ax: 0,
+         ay: -35
+       },
+       {
+         x: 11,
+         y: 0,
+         showarrow: true,
+         arrowsize:2,
+         arrowwidth:1,
+         arrowhead:3,
+         ax: -35,
+         ay: 0
+       },
+       {
+         x: -11,
+         y: 0,
+         showarrow: true,
+         arrowsize:2,
+         arrowwidth:1,
+         arrowhead:3,
+         ax: 35,
+         ay: 0
+       }
+
+     ];
+      data.push(xTickMarkLabels,yTickMarkLabels);
+      Plotly.newPlot(plot, data, layout,{displayModeBar: false});
+    }
+    catch (err) {
+      console.error(err)
+      $("#alert").html("Please enter an appropriate function using x as the input variable");
+      $("#alert").show();
+    }
+  }
+</script>
